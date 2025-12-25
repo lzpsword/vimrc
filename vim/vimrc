@@ -1,0 +1,66 @@
+" ========= 基础行为 =========
+set nocompatible
+set encoding=utf-8
+set number
+"set relativenumber
+set cursorline
+set showcmd
+set wildmenu
+set hidden
+
+" ========= 缩进（Android/C/C++ 友好） =========
+set expandtab
+set tabstop=4
+set shiftwidth=4
+set softtabstop=4
+set autoindent
+set smartindent
+
+" ========= 搜索 =========
+set incsearch
+set ignorecase
+set smartcase
+set hlsearch
+
+" ========= UI =========
+syntax on
+set termguicolors
+set laststatus=2
+set ruler
+
+" ========= 文件 =========
+set backspace=indent,eol,start
+set nobackup
+set nowritebackup
+set noswapfile
+" set undofile  ”保存历史修改
+" set undodir=~/.vim/undo 
+
+" ========= 剪贴板（Linux / Mac 兼容） =========
+if has('clipboard')
+  set clipboard=unnamedplus
+endif
+
+" ========= cscope =========
+if has("cscope")
+  set cscopetag
+  set cscopequickfix=s-,c-,d-,i-,t-,e-
+  if filereadable("cscope.out")
+    cs add cscope.out
+  endif
+endif
+
+" ========= ctags =========
+set tags=./tags;,tags;
+
+
+" ========= 快捷键 =========
+let mapleader=" "
+nnoremap <leader>n :NERDTreeToggle<CR>
+
+" ========= 插件 =========
+source ~/.vim/plugins.vim
+
+" ========= 文件类型 =========
+filetype plugin indent on
+
