@@ -8,6 +8,13 @@ set showcmd
 set wildmenu
 set hidden
 
+" Restore cursor position when reopening a file
+autocmd BufReadPost *
+      \ if line("'\"") > 1 && line("'\"") <= line("$") |
+      \   execute "normal! g`\"" |
+      \ endif
+
+
 " ========= 缩进（Android/C/C++ 友好） =========
 set expandtab
 set tabstop=4
