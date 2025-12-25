@@ -1,131 +1,150 @@
 #!/bin/bash
 # =========================================================
 # Script: gen_index.sh
-# Purpose: Incrementally generate/update cscope and ctags indexes for large projects
-# Author: Neil (example)
-# Usage: ./gen_index.sh [-c] [-t] [-a] [-h]
-# Options:
-#   -c    Only generate/update cscope
-#   -t    Only generate/update ctags
-#   -a    Generate/update both (default)
-#   -h    Show this help message
+# Purpose: Generate/update cscope and ctags indexes with timing
 # =========================================================
 
 set -e
 
 # -------------------------
-# 先检查工具是否安装
+# 工具检查
 # -------------------------
-function check_command() {
+check_command() {
   if ! command -v "$1" &> /dev/null; then
-    echo "Error: '$1' is not installed. Please install it first."
-    if [ "$1" == "ctags" ]; then
-      echo "For Ubuntu/Debian: sudo apt install -y exuberant-ctags or universal-ctags"
-    elif [ "$1" == "cscope" ]; then
-      echo "For Ubuntu/Debian: sudo apt install -y cscope"
+    echo "Error: '$1' is not installed."
+    if [ "$1" = "ctags" ]; then
+      echo "Install: sudo apt install -y exuberant-ctags or universal-ctags"
+    elif [ "$1" = "cscope" ]; then
+      echo "Install: sudo apt install -y cscope"
     fi
     exit 1
   fi
 }
 
-# 检查 ctags 和 cscope
 check_command ctags
 check_command cscope
 
 # -------------------------
-# 默认标志
+# 帮助
+# -------------------------
+show_help() {
+  echo "Usage: $0 [options]"
+  echo ""
+  echo "Options:"
+  echo "  -c      Only generate cscope"
+  echo "  -t      Only generate ctags"
+  echo "  -a      Generate both"
+  echo "  -h      Show help"
+}
+
+# -------------------------
+# 参数处理
 # -------------------------
 DO_CSCOPE=0
 DO_CTAG=0
 
-# -------------------------
-# 显示帮助
-# -------------------------
-function show_help() {
-  echo "Usage: $0 [options]"
-  echo ""
-  echo "Options:"
-  echo "  -c      Only generate/update cscope"
-  echo "  -t      Only generate/update ctags"
-  echo "  -a      Generate/update both (default if no option)"
-  echo "  -h      Show this help message"
-  echo ""
-  echo "Example usage:"
-  echo "  $0 -a       # generate both"
-  echo "  $0 -c       # only cscope"
-  echo "  $0 -t       # only ctags"
-}
-
-# -------------------------
-# 解析参数
-# -------------------------
 if [ $# -eq 0 ]; then
-    show_help
-    exit 0
+  show_help
+  exit 0
 fi
 
-while getopts "ctaHh" opt; do
+while getopts "ctah" opt; do
   case $opt in
     c) DO_CSCOPE=1 ;;
     t) DO_CTAG=1 ;;
     a) DO_CSCOPE=1; DO_CTAG=1 ;;
-    h|H) show_help; exit 0 ;;
+    h) show_help; exit 0 ;;
     *) show_help; exit 1 ;;
   esac
 done
 
 # -------------------------
-# 文件列表
+# 总耗时开始
 # -------------------------
+TOTAL_START=$(date +%s)
+
+# -------------------------
+# 生成文件列表
+# -------------------------
+echo "==> Building source file list..."
+LIST_START=$(date +%s)
+
 CSCOPE_FILE_LIST="cscope.files"
-echo "==> Building file list..."
 
 find . \
-  -path "./out" -prune -o -path "./.git" -prune -o \
+  -path "./out" -prune -o \
+  -path "./.git" -prune -o \
   -name "*.c" -o -name "*.cpp" -o -name "*.h" -o \
   -name "*.java" -o -name "*.aidl" \
-  -print > $CSCOPE_FILE_LIST
+  -print > "$CSCOPE_FILE_LIST"
 
-echo "Total source files: $(wc -l < $CSCOPE_FILE_LIST)"
+LIST_END=$(date +%s)
+LIST_COST=$((LIST_END - LIST_START))
+
+echo "Source files: $(wc -l < "$CSCOPE_FILE_LIST")"
+echo "File scan time: ${LIST_COST}s"
 
 # -------------------------
-# 生成/更新 cscope
+# cscope
 # -------------------------
 if [ "$DO_CSCOPE" -eq 1 ]; then
-  echo "==> Generating/updating cscope index..."
-  if [ -f "cscope.out" ]; then
+  echo "==> Generating cscope index..."
+  CSCOPE_START=$(date +%s)
+
+  if [ -f cscope.out ]; then
     cscope -u -q -k
   else
     cscope -b -q -k
   fi
-  echo "cscope index ready: cscope.out"
+
+  CSCOPE_END=$(date +%s)
+  CSCOPE_COST=$((CSCOPE_END - CSCOPE_START))
+
+  echo "cscope done in ${CSCOPE_COST}s"
 fi
 
 # -------------------------
-# 生成/更新 ctags
+# ctags
 # -------------------------
 if [ "$DO_CTAG" -eq 1 ]; then
-  echo "==> Generating/updating ctags index..."
-  if [ -f "tags" ]; then
-    CTAGS_CMD="ctags -R --languages=C,C++,Java --exclude=out --exclude=.git --extra=+q --append=yes"
+  echo "==> Generating ctags index..."
+  CTAGS_START=$(date +%s)
+
+  if [ -f tags ]; then
+    ctags -R \
+      --languages=C,C++,Java \
+      --exclude=out \
+      --exclude=.git \
+      --extra=+q \
+      --append=yes
   else
-    CTAGS_CMD="ctags -R --languages=C,C++,Java --exclude=out --exclude=.git --extra=+q"
+    ctags -R \
+      --languages=C,C++,Java \
+      --exclude=out \
+      --exclude=.git \
+      --extra=+q
   fi
-  eval $CTAGS_CMD
-  echo "tags file ready"
+
+  CTAGS_END=$(date +%s)
+  CTAGS_COST=$((CTAGS_END - CTAGS_START))
+
+  echo "ctags done in ${CTAGS_COST}s"
 fi
 
 # -------------------------
-# Vim load instructions
+# 总耗时
 # -------------------------
-if [ "$DO_CSCOPE" -eq 1 ] || [ "$DO_CTAG" -eq 1 ]; then
-  VIM_COSCOPE_LOAD="cs add $(pwd)/cscope.out"
-  VIM_TAGS_PATH="set tags=$(pwd)/tags;,tags;"
-  echo "==> Vim load instructions:"
-  echo "Add the following to your vimrc or run inside Vim:"
-  echo "  $VIM_COSCOPE_LOAD"
-  echo "  $VIM_TAGS_PATH"
-fi
+TOTAL_END=$(date +%s)
+TOTAL_COST=$((TOTAL_END - TOTAL_START))
 
-echo "==> Done."
+echo "----------------------------------------"
+echo "Total time: ${TOTAL_COST}s"
+echo "----------------------------------------"
+
+# -------------------------
+# Vim 提示
+# -------------------------
+echo "Vim commands:"
+[ "$DO_CSCOPE" -eq 1 ] && echo "  :cs add $(pwd)/cscope.out"
+[ "$DO_CTAG" -eq 1 ] && echo "  :set tags=$(pwd)/tags;,tags;"
 
